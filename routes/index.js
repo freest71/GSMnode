@@ -1,11 +1,12 @@
 var express = require('express');
 var router = express.Router();
 
+/* shb0976@01 */
 var mysql = require('mysql');
 var connection = mysql.createConnection({
   host     : 'localhost',
   user     : 'root',
-  password : 'shb0976@01',
+  password : 'test1234',
   database : 'gsm'
 }); 
 connection.connect();
@@ -21,7 +22,7 @@ router.post('/login', function(req, res) {
 	console.log("___post /login___");
 	console.log("___jkw_no=[%s]", req.body.jkw_no);
 	console.log("___password=[%s]", req.body.password);
-	console.log("___device_token=[%s]", req.body.device_token);
+	console.log("___fire_token=[%s]", req.body.fire_token);
 
 	var crypto = require('crypto');
 
@@ -50,8 +51,6 @@ router.post('/login', function(req, res) {
 		}						
 	};
 
-	var device_token = cur_date.getTime();
-
 	console.log("___settingAddHeaders=%j", settingAddHeaders);
 
 	var secret = "SHINHANMOBILETOPSECRET!!!!!!!!";
@@ -68,7 +67,7 @@ router.post('/login', function(req, res) {
 				connection.query(
 					'insert into tbl_gsm_login('+
 					'jkw_no, password_token, device_token) values(?,?,?)',
-					[req.body.jkw_no, tokens[2], device_token],
+					[req.body.jkw_no, tokens[2], req.body.fire_token],
 					function(err, result) {
 						if (err) {
 							console.log("___login insert error");
@@ -87,21 +86,57 @@ router.post('/login', function(req, res) {
 });
 
 router.get('/login/device_token/:device_token',function(req,res){
-	console.log("device_token=[%s]", req.params.device_token);
+	console.log("___device_token=[%s]", req.params.device_token);
+
 	connection.query('select * from tbl_gsm_login where device_token=?',
 		[req.params.device_token], function(err, results, fields) {
 			if (err) {
 				res.send(JSON.stringify(err));
 			} else {
 				if (results.length > 0) {
-					res.send(JSON.stringify(results[0]));
+					console.log("___result true___");
+					console.log(JSON.stringify(results[0]));
+					res.send(JSON.stringify({result:true,results:results[0]}));
 				} else {
-					res.send(JSON.stringify({}));
+					console.log("___result false___");
+					res.send(JSON.stringify({result:false}));
 				}				
 			}
 		});
 });
 
+
+router.put('/gsm/status', function(req, res) {
+	var branch_no = req.body.branch_no;
+	var status1 = req.body.webserver_1_status;
+	var status2 = req.body.webserver_2_status;
+
+	console.log("___branch_no=", branch_no);
+	console.log("___status1=", status1);
+	console.log("___status2=", status2);
+
+	connection.query(
+		'update tbl_gsm_mas \
+		 	set webserver_1_status = ?, \
+		 	    webserver_2_status = ?  \
+		 where branch_no = ?',
+		[ status1, status2, Number(branch_no)], 
+		function(err, result) {
+			if (err) {
+				console.log("___웹서버 모니터링 결과 update error");
+				res.send(JSON.stringify(err));
+			} else {
+				console.log("___웹서버 모니터링 결과 update success");
+				res.send(JSON.stringify({
+					result:true,
+					db_result:result
+				}));
+			}
+		});
+
+
+
+});
 
 router.put('/user', function(req, res) {
 	var rowid = req.body.rowid;
@@ -123,7 +158,7 @@ router.get('/gsm/list', function(req, res) {
 	console.log("__monitoring start");
 
 	connection.query(
-		'select a.branch_name, a.webserver_location, b.webserver_1_status, b.webserver_2_status \
+		'select a.branch_no, a.branch_name, a.webserver_location, b.webserver_1_status, b.webserver_2_status \
 			from tbl_gsm_branch_info a \
 			left outer join tbl_gsm_mas b \
 			on a.branch_no = b.branch_no \
@@ -145,20 +180,25 @@ router.get('/gsm/list', function(req, res) {
 
 /*
 서버키
-AAAAR74VBVk:APA91bHof8sTERy8WcbsRV8CmzMs-rv_cAWC_vA_zR10QT65A5ECzrtPJOae743DMrBB2lN6pqoi2i8LRcOB265x7BqrvKmruCbmn450Rp5_iL-gaS-TyV9eqf-xu9mYRPesuaKKiUGr 
+AAAAxVrgQyI:APA91bF0HyhA150C7jPS8W6BJ5bC5NtcpLbymDycd6s_6bffZnjZy3lCIddiO9YwTeOBjywm6YSMZvfUOyZM7gDFenILR0pJAOVrCM0OMaX33E4ksQNkE3M2aCSV5wGDPo-43E5A00Ww
 이전 서버 키 :
-AIzaSyDaJ5e48oW6akCgf-ZnXKQgl7YkEe7sh68 
+AIzaSyCWldFwpkZWonM1hY-1Qh7gEWUFhz3Ay_c
 웹 API 키:
-AIzaSyBqkCGNfnqGae1fV7mGWqC9_Rodvw7epxc 
+AIzaSyDkm_jnfLNiNI639sTA523f9tHOCnGQ6BA
 */
-/*
 var FCM = require('fcm-node');
-var serverKey = 'AAAAR74VBVk:APA91bHof8sTERy8WcbsRV8CmzMs-rv_cAWC_vA_zR10QT65A5ECzrtPJOae743DMrBB2lN6pqoi2i8LRcOB265x7BqrvKmruCbmn450Rp5_iL-gaS-TyV9eqf-xu9mYRPesuaKKiUGr'; //put your server key here
+var serverKey = 'AAAAxVrgQyI:APA91bF0HyhA150C7jPS8W6BJ5bC5NtcpLbymDycd6s_6bffZnjZy3lCIddiO9YwTeOBjywm6YSMZvfUOyZM7gDFenILR0pJAOVrCM0OMaX33E4ksQNkE3M2aCSV5wGDPo-43E5A00Ww'; //put your server key here
 var fcm = new FCM(serverKey);
-router.post('/user/push/:id',function(req,res) {
+
+router.post('/user/push/',function(req,res) {
+	console.log("__/user/push__device_token=");
+	console.log(req.body.device_token);
+
+	var device_token = req.body.device_token;
+
 	connection.query(
-		'select device_token from user_nologin where id=?',
-		[ req.params.id ], 
+		'select device_token from tbl_gsm_login where device_token = ?',
+		[ req.body.device_token ], 
 		function(err, results, fields) {
 			if (err) {
 				res.send(JSON.stringify({result:false,err:err}));
@@ -168,12 +208,12 @@ router.post('/user/push/:id',function(req,res) {
 				        to: results[0].device_token, 
 				        collapse_key: 'shinhan_collapse_key',
 				        notification: {
-				            title: 'PUSH NOTI TEST', 
-				            body: 'this is a body of your push notification' 
+				            title: '서버 모니터링 오류알림 PUSH TEST', 
+				            body: '베트남 웹서버1 장애 상태입니다.' 
 				        },				        
 				        data: {  //you can send only notification or only data(or include both)
-				            data1: 'value1',
-				            data2: 'value2'
+				            data1: '테스트value1',
+				            data2: '테스트value2'
 				        }
 				    };
 				    fcm.send(message, function(err, response){
@@ -188,7 +228,7 @@ router.post('/user/push/:id',function(req,res) {
 				}
 			}
 		});	
-}); */
+});
 
 ///////////////////////////////////////////////////////////////////
 
